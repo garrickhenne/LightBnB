@@ -17,20 +17,17 @@ const pool = new Pool({
  */
 const getUserWithEmail = function(email) {
   const values = [email];
-  return new Promise((resolve, reject) => {
-    pool.query(`SELECT * FROM users WHERE email = $1 LIMIT 1;`, values)
-      .then(response => {
-        if (!response.rows[0]) {
-          resolve(null);
-          return;
-        }
-        resolve(response.rows[0]);
-      })
-      .catch(err => {
-        console.log(err);
-        return reject(err);
-      });
-  });
+  return pool.query(`SELECT * FROM users WHERE email = $1 LIMIT 1;`, values)
+    .then(response => {
+      if (!response.rows[0]) {
+        return null;
+      }
+      return response.rows[0];
+    })
+    .catch(err => {
+      console.log(err);
+      throw Error(err);
+    });
 };
 
 /**
@@ -39,20 +36,18 @@ const getUserWithEmail = function(email) {
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithId = function(id) {
-  return new Promise((resolve, reject) => {
-    const values = [id];
-    pool.query(`SELECT * FROM users WHERE id = $1 LIMIT 1;`, values)
-      .then(response => {
-        if (!response.rows[0]) {
-          return resolve(null);
-        }
-        return resolve(response.rows[0]);
-      })
-      .catch(error => {
-        console.log(error);
-        return reject(error);
-      });
-  });
+  const values = [id];
+  return pool.query(`SELECT * FROM users WHERE id = $1 LIMIT 1;`, values)
+    .then(response => {
+      if (!response.rows[0]) {
+        return null;
+      }
+      return response.rows[0];
+    })
+    .catch(error => {
+      console.log(error);
+      throw Error(error);
+    });
 };
 
 /**
@@ -61,26 +56,24 @@ const getUserWithId = function(id) {
  * @return {Promise<{}>} A promise to the user.
  */
 const addUser = function(user) {
-  return new Promise((resolve, reject) => {
-    const values = [user.name, user.password, user.email];
-    getUserWithEmail(user.email)
-      .then(response => {
-        if (response) {
-          throw Error('User email already exists');
-        }
-      })
-      .then(() => {
-        pool.query(`INSERT INTO users (name, password, email) VALUES ($1, $2, $3) RETURNING *`, values)
-          .then(res => {
-            if (!res.rows[0].id) {
-              reject('Something went wrong trying to return id from insert query.');
-              return;
-            }
-            return resolve({ id: res.rows[0].id });
-          });
-      })
-      .catch(error => reject(error));
-  });
+  const values = [user.name, user.password, user.email];
+  return getUserWithEmail(user.email)
+    .then(response => {
+      if (response) {
+        throw Error('User email already exists');
+      }
+    })
+    .then(() => pool.query(`INSERT INTO users (name, password, email) VALUES ($1, $2, $3) RETURNING *`, values))
+    .then(res => {
+      if (!res.rows[0].id) {
+        throw Error('Something went wrong trying to return id from insert query.');
+      }
+      return { id: res.rows[0].id };
+    })
+    .catch(error => {
+      console.log(error);
+      throw error;
+    });
 };
 
 /// Reservations
@@ -103,16 +96,13 @@ const getAllReservations = function(guest_id, limit = 10) {
  * @return {Promise<[{}]>}  A promise to the properties.
  */
 const getAllProperties = function(options, limit = 10) {
-  return new Promise((resolve, reject) => {
-    pool.query(`SELECT * FROM properties LIMIT $1`, [limit])
-      .then(res => {
-        resolve(res.rows);
-      })
-      .catch(error => {
-        console.log(error);
-        reject(error);
-      });
-  });
+  return pool.query(`SELECT * FROM properties LIMIT $1`, [limit])
+    .then(res => {
+      return res.rows;
+    })
+    .catch(error => {
+      console.log(error);
+    });
 };
 
 /**
