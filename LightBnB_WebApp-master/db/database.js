@@ -9,6 +9,16 @@ const pool = new Pool({
   database: process.env.DB_DATABASE
 });
 
+const query = (text, params) => {
+  const start = Date.now();
+  return pool.query(text, params)
+    .then((res) => {
+      const duration = Date.now() - start;
+      console.log('executed query', { text, duration, rows: res.rowCount });
+      return res;
+    });
+};
+
 /// Users
 
 /**
@@ -18,7 +28,7 @@ const pool = new Pool({
  */
 const getUserWithEmail = function(email) {
   const values = [email];
-  return pool.query(`SELECT * FROM users WHERE email = $1 LIMIT 1;`, values)
+  return query(`SELECT * FROM users WHERE email = $1 LIMIT 1;`, values)
     .then(response => {
       if (!response.rows[0]) {
         return null;
@@ -38,7 +48,7 @@ const getUserWithEmail = function(email) {
  */
 const getUserWithId = function(id) {
   const values = [id];
-  return pool.query(`SELECT * FROM users WHERE id = $1 LIMIT 1;`, values)
+  return query(`SELECT * FROM users WHERE id = $1 LIMIT 1;`, values)
     .then(response => {
       if (!response.rows[0]) {
         return null;
@@ -64,7 +74,7 @@ const addUser = function(user) {
         throw Error('User email already exists');
       }
     })
-    .then(() => pool.query(`INSERT INTO users (name, password, email) VALUES ($1, $2, $3) RETURNING *`, values))
+    .then(() => query(`INSERT INTO users (name, password, email) VALUES ($1, $2, $3) RETURNING *`, values))
     .then(res => {
       if (!res.rows[0].id) {
         throw Error('Something went wrong trying to return id from insert query.');
@@ -101,7 +111,7 @@ const getAllReservations = function(guest_id, limit = 10) {
     ORDER BY r.start_date ASC
     LIMIT $2
   `;
-  return pool.query(sql, values)
+  return query(sql, values)
     .then(response => response.rows)
     .catch(err => {
       console.log('getAllReservations error: ', err.message);
@@ -189,7 +199,7 @@ const getAllProperties = function(options, limit = 10) {
 
   console.log(queryString, queryParams);
 
-  return pool.query(queryString, queryParams).then(res => res.rows)
+  return query(queryString, queryParams).then(res => res.rows)
     .catch(error => {
       console.log(error);
       throw error;
@@ -249,7 +259,7 @@ const addProperty = function(property) {
   RETURNING *;
   `;
   console.log(sqlQuery, values);
-  return pool.query(sqlQuery, values)
+  return query(sqlQuery, values)
     .then(response => response.rows[0])
     .catch(err => {
       console.log(err);
