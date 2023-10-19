@@ -1,4 +1,3 @@
-const properties = require("./json/properties.json");
 const { Pool } = require("pg");
 
 const CENT_TO_DOLLARS_FACTOR = 100;
@@ -203,10 +202,59 @@ const getAllProperties = function(options, limit = 10) {
  * @return {Promise<{}>} A promise to the property.
  */
 const addProperty = function(property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+  /*
+    // Property
+    {
+      owner_id: int,
+      title: string,
+      description: string,
+      thumbnail_photo_url: string,
+      cover_photo_url: string,
+      cost_per_night: string,
+      street: string,
+      city: string,
+      province: string,
+      post_code: string,
+      country: string,
+      parking_spaces: int,
+      number_of_bathrooms: int,
+      number_of_bedrooms: int
+    }
+  */
+  const values = [];
+  const propertyAttributeNames = [];
+
+  for (const propertyKey in property) {
+    if (!property[propertyKey]) {
+      throw Error(`${propertyKey} cannot be null!`);
+    }
+    propertyAttributeNames.push(propertyKey);
+    if (propertyKey === 'number_of_bedrooms' ||
+      propertyKey === 'number_of_bathrooms' ||
+      propertyKey === 'parking_spaces') {
+      values.push(Number(property[propertyKey]));
+      continue;
+    }
+    if (propertyKey === 'cost_per_night') {
+      values.push(Number(property[propertyKey]) * CENT_TO_DOLLARS_FACTOR);
+      continue;
+    }
+    values.push(property[propertyKey]);
+  }
+
+  let sqlQuery = `INSERT INTO properties
+  (${propertyAttributeNames.join(', ')})
+  VALUES
+  (${values.map((_, index) => `$${index + 1}`).join(', ')})
+  RETURNING *;
+  `;
+  console.log(sqlQuery, values);
+  return pool.query(sqlQuery, values)
+    .then(response => response.rows[0])
+    .catch(err => {
+      console.log(err);
+      throw err;
+    });
 };
 
 module.exports = {
